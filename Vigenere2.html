@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vigenère Cipher - Pro Edition</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --neon-cyan: #00e0ff;
+    --neon-purple: #ff9cff;
+    --neon-green: #7CFF7C;
+    --glass: rgba(10, 15, 30, 0.85);
+    --glass-border: rgba(0, 224, 255, 0.3);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'JetBrains Mono', monospace;
+    background: #050810;
+    color: #fff;
+    min-height: 100vh;
+    overflow: hidden; 
+}
+
+#three-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.terminal-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    gap: 15px;
+}
+
+.header-container {
+    text-align: center;
+    padding: 10px 0;
+}
+
+.font-header {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 10px;
+    font-size: 2.2rem;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(0, 224, 255, 0.8);
+    margin: 0;
+}
+
+.card {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.9);
+    position: relative;
+    overflow: hidden;
+}
+
+.hologram::after {
+    content: "";
+    position: absolute;
+    top: -100%; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(0, 224, 255, 0) 0%, rgba(0, 224, 255, 0.08) 50%, rgba(0, 224, 255, 0) 100%);
+    animation: scan 3s linear infinite;
+    pointer-events: none;
+}
+@keyframes scan { 0% { top: -100%; } 100% { top: 100%; } }
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1.3fr 1fr;
+    gap: 15px;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.input-row {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+input, select {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--neon-cyan);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    outline: none;
+    flex: 1;
+    font-size: 18px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+select {
+    flex: 0.5;
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+}
+
+button {
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(135deg, #00e0ff, #4facfe);
+    padding: 12px 40px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 16px;
+    transition: 0.3s;
+    letter-spacing: 1px;
+}
+
+button:hover {
+    box-shadow: 0 0 25px var(--neon-cyan);
+    transform: scale(1.02);
+}
+
+.alpha-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+    gap: 5px;
+}
+
+.alpha-box {
+    height: 45px;
+    background: rgba(20, 26, 51, 0.9);
+    border: 1px solid rgba(0, 224, 255, 0.3);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.step {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 7px 15px;
+    margin-top: 10px;
+    border-left: 5px solid var(--neon-cyan);
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+    min-height: 60px;
+}
+
+.step-answer {
+    display: block; 
+    font-size: 18px;
+    font-weight: 900;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-shadow: 0 0 10px currentColor;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.table-scroll {
+    overflow-y: auto;
+    /* Hide scrollbars but keep functionality */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.table-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+table { width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; }
+th { background: rgba(0, 224, 255, 0.2); color: var(--neon-cyan); padding: 12px; position: sticky; top: 0; font-family: 'Orbitron'; }
+td { border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px; }
+
+#evolution-panel {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease;
+}
+
+#evolution-panel.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="three-canvas"></canvas>
+
+<div class="terminal-wrapper">
+    <div class="header-container">
+        <h1 class="font-header" id="scramble-target">Vigenère Cipher</h1>
+    </div>
+
+    <div class="card hologram" data-tilt>
+        <div class="input-row">
+            <select id="cipherMode">
+                <option value="ENCRYPT">ENCRYPT</option>
+                <option value="DECRYPT">DECRYPT</option>
+            </select>
+            <input id="plaintext" value="SCHOOL" placeholder="Text Content">
+            <input id="key" value="KEY" placeholder="Secret Key">
+            <button onclick="handleExecution()">Execute</button>
+        </div>
+    </div>
+
+    <div class="card" data-tilt>
+        <h3 style="margin: 0 0 10px 0; font-size: 14px; color: var(--neon-cyan); letter-spacing: 2px; font-family: 'Orbitron';">INDEX_MAPPING_SYSTEM</h3>
+        <div id="alphabetStrip" class="alpha-strip"></div>
+    </div>
+
+    <div class="main-grid">
+        <div class="card hologram" data-tilt>
+            <h3 style="margin: 0; font-size: 16px; font-family: 'Orbitron';">PROCESSING_STEPS</h3>
+            <div id="step1" class="step">Waiting for execution...</div>
+            <div id="step2" class="step">Waiting for execution...</div>
+            <div id="step3" class="step">Waiting for execution...</div>
+            <div id="step4" class="step">Waiting for execution...</div>
+        </div>
+
+        <div class="card table-scroll" data-tilt>
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-family: 'Orbitron';">RESULT_MATRIX</h3>
+            <table id="vigenereVertical">
+                <thead>
+                    <tr>
+                        <th>In</th>
+                        <th>Key</th>
+                        <th>Val1</th>
+                        <th>Val2</th>
+                        <th>Mod</th>
+                        <th>Out</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="final-result-container" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid var(--neon-cyan); display: none;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span id="final-string" style="font-size: 20px; font-weight: 900; color: #fff; letter-spacing: 2px; flex-grow: 1;"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="evolution-panel" class="card hologram" style="border-color: var(--neon-purple);">
+            <h3 style="color: var(--neon-purple); margin: 0; font-size: 16px; font-family: 'Orbitron';">Drawbacks</h3>
+            <div class="step" style="border-left-color: var(--neon-purple);">
+                <b style="color: var(--neon-purple);">Weaknesses:</b>
+                <ul style="padding-left: 20px; margin-top: 10px; font-size: 12px;">
+                    <li>Vulnerable to Kasiski examination</li>
+                    <li>Key repetition creates patterns</li>
+                </ul>
+            </div>
+            <div class="step" style="border-left-color: var(--neon-green); margin-top: 20px;">
+                <b style="color: var(--neon-green);">Evolution:</b>
+                <p style="font-size: 12px; margin-top: 5px;">Playfair Cipher was later introduced to encrypt letter pairs (digraphs) to break single-letter frequency analysis.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* SCRAMBLE EFFECT, 3D BACKGROUND, TILT, AND LOGIC (Omitted for brevity, kept exactly as your original) */
+/* ... Same script as provided in your prompt ... */
+class TextScramble {
+    constructor(el) {
+        this.el = el;
+        this.chars = '!<>-_\\/[]{}—=+*^?#________';
+        this.update = this.update.bind(this);
+    }
+    setText(newText) {
+        const oldText = this.el.innerText;
+        const length = Math.max(oldText.length, newText.length);
+        const promise = new Promise((resolve) => this.resolve = resolve);
+        this.queue = [];
+        for (let i = 0; i < length; i++) {
+            const from = oldText[i] || '';
+            const to = newText[i] || '';
+            const start = Math.floor(Math.random() * 40);
+            const end = start + Math.floor(Math.random() * 40);
+            this.queue.push({ from, to, start, end });
+        }
+        cancelAnimationFrame(this.frameRequest);
+        this.frame = 0;
+        this.update();
+        return promise;
+    }
+    update() {
+        let output = '';
+        let complete = 0;
+        for (let i = 0, n = this.queue.length; i < n; i++) {
+            let { from, to, start, end, char } = this.queue[i];
+            if (this.frame >= end) { complete++; output += to; }
+            else if (this.frame >= start) {
+                if (!char || Math.random() < 0.28) { char = this.randomChar(); this.queue[i].char = char; }
+                output += `<span style="color:var(--neon-cyan)">${char}</span>`;
+            } else { output += from; }
+        }
+        this.el.innerHTML = output;
+        if (complete === this.queue.length) { this.resolve(); }
+        else { this.frameRequest = requestAnimationFrame(this.update); this.frame++; }
+    }
+    randomChar() { return this.chars[Math.floor(Math.random() * this.chars.length)]; }
+}
+
+let scene, camera, renderer, stars;
+function initThree() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    const geometry = new THREE.BufferGeometry();
+    const pos = [];
+    for (let i = 0; i < 4000; i++) {
+        pos.push(Math.random() * 2000 - 1000, Math.random() * 2000 - 1000, Math.random() * 2000 - 1000);
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const material = new THREE.PointsMaterial({ color: 0x00e0ff, size: 2, transparent: true, opacity: 0.5 });
+    stars = new THREE.Points(geometry, material);
+    scene.add(stars);
+    camera.position.z = 500;
+}
+
+function animateBackground() {
+    requestAnimationFrame(animateBackground);
+    stars.rotation.y += 0.001;
+    renderer.render(scene, camera);
+}
+
+function initTilt() {
+    document.querySelectorAll('[data-tilt]').forEach(card => {
+        card.addEventListener('mousemove', e => {
+            const rect = card.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+            gsap.to(card, { rotateY: x * 10, rotateX: -y * 10, duration: 0.5 });
+        });
+        card.addEventListener('mouseleave', () => {
+            gsap.to(card, { rotateY: 0, rotateX: 0, duration: 0.5 });
+        });
+    });
+}
+
+const strip = document.getElementById("alphabetStrip");
+for (let i = 0; i < 26; i++) {
+    const box = document.createElement("div");
+    box.className = "alpha-box";
+    box.id = "alpha-" + i;
+    box.innerHTML = `${String.fromCharCode(65 + i)}<span style="font-size:10px; opacity:0.5;">${i}</span>`;
+    strip.appendChild(box);
+}
+
+function startAnimationFirstLetter(text, key, mode) {
+    gsap.killTweensOf("*");
+    document.querySelectorAll(".alpha-box").forEach(b => {
+        b.style.backgroundColor = "rgba(20, 26, 51, 0.9)";
+        b.style.color = "#fff";
+        b.style.boxShadow = "none";
+    });
+
+    const isEncrypt = mode === "ENCRYPT";
+    const pChar = text[0];
+    const kChar = key[0];
+    const pVal = pChar.charCodeAt(0) - 65;
+    const kVal = kChar.charCodeAt(0) - 65;
+    const mathVal = isEncrypt ? (pVal + kVal) : (pVal - kVal + 26);
+    const mod = mathVal % 26;
+    const cChar = String.fromCharCode(mod + 65);
+
+    document.getElementById("step1").innerHTML = isEncrypt ? "Step 1: Locate Plain Letter" : "Step 1: Locate Cipher Letter";
+    document.getElementById("step2").innerHTML = "Step 2: Locate Key Letter";
+    document.getElementById("step3").innerHTML = isEncrypt ? "Step 3: (P + K) mod 26" : "Step 3: (C - K + 26) mod 26";
+    document.getElementById("step4").innerHTML = "Step 4: Resolve Result Letter";
+
+    gsap.to(`#alpha-${pVal}`, {
+        backgroundColor: "#00e0ff", boxShadow: "0 0 20px #00e0ff", color: "#000", duration: 0.5,
+        onComplete: () => { document.getElementById("step1").appendChild(createSpan(`${pChar} → Val ${pVal}`, "var(--neon-cyan)")); }
+    });
+
+    gsap.to(`#alpha-${kVal}`, {
+        delay: 0.8, backgroundColor: "#7CFF7C", boxShadow: "0 0 20px #7CFF7C", color: "#000", duration: 0.5,
+        onComplete: () => { document.getElementById("step2").appendChild(createSpan(`${kChar} → Val ${kVal}`, "var(--neon-green)")); }
+    });
+
+    gsap.delayedCall(1.6, () => {
+        const formula = isEncrypt ? `${pVal} + ${kVal}` : `${pVal} - ${kVal} (+26)`;
+        document.getElementById("step3").appendChild(createSpan(`${formula} mod 26 = ${mod}`, "white"));
+    });
+
+    gsap.to(`#alpha-${mod}`, {
+        delay: 2.4, backgroundColor: "#ff9cff", boxShadow: "0 0 20px #ff9cff", color: "#000", duration: 0.5,
+        onComplete: () => { document.getElementById("step4").appendChild(createSpan(`Result: ${cChar}`, "var(--neon-purple)")); }
+    });
+}
+
+function createSpan(text, color) {
+    const span = document.createElement("div");
+    span.className = "step-answer";
+    span.style.color = color;
+    span.innerHTML = text;
+    gsap.from(span, { y: 10, opacity: 0, duration: 0.4 });
+    return span;
+}
+
+function buildVerticalTable(text, k, mode) {
+    const isEncrypt = mode === "ENCRYPT";
+    const tbody = document.getElementById("vigenereVertical").tBodies[0];
+    tbody.innerHTML = ""; 
+    let finalString = "";
+
+    for (let i = 0; i < text.length; i++) {
+        const pVal = text[i].charCodeAt(0) - 65;
+        const kVal = k[i % k.length].charCodeAt(0) - 65;
+        const modResult = isEncrypt ? (pVal + kVal) % 26 : (pVal - kVal + 26) % 26;
+        const charResult = String.fromCharCode(modResult + 65);
+        finalString += charResult;
+        
+        tbody.insertAdjacentHTML('beforeend', `<tr>
+            <td>${text[i]}</td><td>${k[i%k.length]}</td><td>${pVal}</td><td>${kVal}</td><td>${modResult}</td>
+            <td style="color:var(--neon-cyan); font-weight:900;">${charResult}</td>
+        </tr>`);
+    }
+    
+    document.getElementById("final-string").innerText = finalString;
+    document.getElementById("final-result-container").style.display = "block";
+}
+
+function handleExecution() {
+    const text = document.getElementById("plaintext").value.toUpperCase().replace(/[^A-Z]/g, '');
+    const k = document.getElementById("key").value.toUpperCase().replace(/[^A-Z]/g, '');
+    const mode = document.getElementById("cipherMode").value;
+    
+    if(text && k) {
+        document.getElementById('evolution-panel').classList.add('active');
+        startAnimationFirstLetter(text, k, mode);
+        buildVerticalTable(text, k, mode);
+    }
+}
+
+window.onload = () => { 
+    initThree(); 
+    animateBackground(); 
+    initTilt(); 
+    const fx = new TextScramble(document.getElementById('scramble-target'));
+    fx.setText('Vigenère Cipher');
+};
+</script>
+
+</body>
+</html>
